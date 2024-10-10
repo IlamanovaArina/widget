@@ -1,8 +1,16 @@
 # Вспомогательные функции, для работы функции страницы «Главная»,
+import os
 import datetime
+from typing import Any
+
 import pandas as pd
 
-from src.reports import info_decorator
+from utils import setup_logger
+
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+file_path_1 = os.path.join(current_dir, "../logs", "logs.log")
+logger = setup_logger("utils", file_path_1)
 
 
 def checking_current_date():
@@ -38,11 +46,6 @@ def date(time: str):  # json
             return "Добрый вечер"
 
 
-greeting = date(checking_current_date())
-
-print(date(checking_current_date()))
-
-
 def reading_tables_xlsx(file_xlsx: str) -> list:
     """Чтение Excel файла и вывод как список словарей"""
     try:
@@ -67,38 +70,30 @@ def reading_tables_xlsx(file_xlsx: str) -> list:
     #     logger_excel.error(f"Ошибка: {t}")
 
 
-file = r"C:\Users\minac.DESKTOP-L51PJSH\PycharmProjects\widget\data\operations.xlsx"
-list_transactions = reading_tables_xlsx(file)
-
-
-def card_information(list_map_data: list): # -> dict:
+def card_information(list_map_data: list) -> list[dict]:
     """Собираю этот страшный словарь,
     хотя бы кусочек, а там посмотрим"""
-
-    scary_list = {
-        "greeting": greeting,
-        "cards": [],  # yes
-        "top_transactions": [],  #
-        "currency_rates": [],  #
-        "stock_prices": []  #
-    }
-
     cards = []
+
+    for transaction in list_map_data:
+        card_number = transaction.get("Номер карты")
+
+        if not card_number or str(card_number).strip().lower() == "nan":
+            continue
+        else:
+            #
+            cards.append(
+                {
+                    "last_digits": transaction.get('Номер карты'),
+                    "total_spent": transaction.get('Сумма платежа'),
+                    "cashback": transaction.get('Бонусы (включая кэшбэк)')
+                }
+            )
+    return cards
+
+
+def top_transactions_information(list_map_data: list) -> list[dict]:
     top_transactions = []
-    currency_rates = []
-    stock_prices = []
-    expenses = []
-
-    for dikt in list_map_data:
-        #
-        cards.append(
-            {
-                "last_digits": dikt.get('Номер карты'),
-                "total_spent": dikt.get('Сумма платежа'),
-                "cashback": dikt.get('Бонусы (включая кэшбэк)')
-            }
-        )
-
     sort_list_transaction = sorted(list_map_data, key=lambda d: d['Сумма платежа'])  #
 
     counter = 0
@@ -115,66 +110,63 @@ def card_information(list_map_data: list): # -> dict:
                     "description": dikt_sort.get('Описание')
                 }
             )
-            # print(dikt_sort['Сумма платежа'])
+
+    return top_transactions
 
 
-    scary_list["cards"] = cards  #
-    scary_list["top_transactions"] = top_transactions  #
-    # scary_list["currency_rates"] =   # Курс валют.
+# не забыть что функция принимает список ["USD", "EUR"]
+def get_exchange_rates(currencies: list[str], api_key_currency: Any, requests=None) -> list[dict]:
+    """Функция принимает список кодов валют и возвращает список словарей с валютами и их курсами"""
+    exchange_rates = []
+    for currency in currencies:
 
-    # scary_list["stock_prices"] =   # Стоимость акций из S&P 500.
+        url = f"https://v6.exchangerate-api.com/v6/{api_key_currency}/latest/{currency}"
+        response = requests.get(url)
 
-    print(f"{cards} \n __________Это другая проверка: cards __________ ")
-    print(2, scary_list)
+        logger.info("Выполнен запрос на курс валют")
+
+        if response.status_code == 200:
+            data = response.json()
+
+            logger.info(f"Получен ответ от api курса валют: {data}")
+
+            ruble_cost = data["conversion_rates"]["RUB"]
+            exchange_rates.append({"currency": currency, "rate": ruble_cost})
+        else:
+            print(f"Ошибка: {response.status_code}, {response.text}")
+            logger.error(f"Ошибка api запроса {response.status_code}, {response.text}")
+            exchange_rates.append({"currency": currency, "rate": None})
+    logger.info("Курсы валют созданы")
+    return exchange_rates
 
 
-result = [
-        {
-            'Дата операции': '27.11.2018 22:40:20',
-            'Дата платежа': '29.11.2018',
-            'Номер карты': '*7197',
-            'Статус': 'OK',
-            'Сумма операции': -485.0,
-            'Валюта операции': 'RUB',
-            'Сумма платежа': -485.0,
-            'Валюта платежа': 'RUB',
-            'Кэшбэк': "nan",
-            'Категория': 'Фастфуд',
-            'MCC': 5814.0,
-            'Описание': 'Теремок',
-            'Бонусы (включая кэшбэк)': 9,
-            'Округление на инвесткопилку': 0,
-            'Сумма операции с округлением': 485.0
-        },
-        {
-            'Дата операции': '27.11.2018 16:06:21',
-            'Дата платежа': '29.11.2018',
-            'Номер карты': '*7197',
-            'Статус': 'OK',
-            'Сумма операции': -200.0, 'Валюта операции': 'RUB', 'Сумма платежа': -200.0, 'Валюта платежа': 'RUB',
-            'Кэшбэк': "nan",
-            'Категория': 'Ж/д билеты', 'MCC': 4111.0, 'Описание': 'Метро Санкт-Петербург',
-            'Бонусы (включая кэшбэк)': 4,
-            'Округление на инвесткопилку': 0, 'Сумма операции с округлением': 200.0},
-        {
-            'Дата операции': '27.11.2018 13:41:48', 'Дата платежа': '29.11.2018', 'Номер карты': '*7197',
-         'Статус': 'OK',
-         'Сумма операции': -215.38, 'Валюта операции': 'RUB', 'Сумма платежа': -215.38, 'Валюта платежа': 'RUB',
-         'Кэшбэк': "nan",
-         'Категория': 'Супермаркеты', 'MCC': 5499.0, 'Описание': 'Колхоз', 'Бонусы (включая кэшбэк)': 4,
-         'Округление на инвесткопилку': 0, 'Сумма операции с округлением': 215.38},
-        {
-            'Дата операции': '26.11.2018 15:56:29', 'Дата платежа': '28.11.2018', 'Номер карты': '*7197',
-         'Статус': 'OK',
-         'Сумма операции': -67.29, 'Валюта операции': 'RUB', 'Сумма платежа': -67.29, 'Валюта платежа': 'RUB',
-         'Кэшбэк': "nan",
-         'Категория': 'Супермаркеты', 'MCC': 5411.0, 'Описание': 'Пятёрочка', 'Бонусы (включая кэшбэк)': 1,
-         'Округление на инвесткопилку': 0, 'Сумма операции с округлением': 67.29},
-        {'Дата операции': '26.11.2018 15:44:09', 'Дата платежа': '28.11.2018', 'Номер карты': '*7197',
-         'Статус': 'OK',
-         'Сумма операции': -53.0, 'Валюта операции': 'RUB', 'Сумма платежа': -53.0, 'Валюта платежа': 'RUB',
-         'Кэшбэк': "nan",
-         'Категория': 'Аптеки', 'MCC': 5912.0, 'Описание': 'Аптека Радуга', 'Бонусы (включая кэшбэк)': 1,
-         'Округление на инвесткопилку': 0, 'Сумма операции с округлением': 53.0}]
+# не забыть что функция принимает список ["AAPL", "AMZN", "GOOGL"]
+def get_stocks_cost(companies: list[str], api_key_stocks: Any, requests=None) -> list[dict]:
+    """Функция принимает список кодов компаний и возвращает словарь со стоимостью акций каждой переданной компании"""
 
-# print(4, card_information(result))
+    stocks_cost = []
+    for company in companies:
+        url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={company}&apikey={api_key_stocks}"
+        response = requests.get(url)
+        logger.info("Выполнен запрос на курс акций")
+
+        if response.status_code == 200:
+            data = response.json()
+            logger.info(f"Получен ответ от api курса акций: {data}")
+            time_series = data.get("Time Series (Daily)")
+
+            if time_series:
+                latest_date = max(time_series.keys())
+                latest_data = time_series[latest_date]
+                stock_cost = latest_data["4. close"]
+                stocks_cost.append({"stock": company, "price": float(stock_cost)})
+            else:
+                print(f"Ошибка: данные для компании {company} недоступны. API ответ {data}")
+                logger.error(f"Ошибка ответа: {data}")
+                stocks_cost.append({"stock": company, "price": None})
+        else:
+            print(f"Ошибка: {response.status_code}, {response.text}")
+            logger.error(f"Ошибка api запроса {response.status_code}, {response.text}")
+            stocks_cost.append({"stock": company, "price": None})
+    logger.info("Стоимость акций создана")
+    return stocks_cost
