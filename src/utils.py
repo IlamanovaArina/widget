@@ -1,17 +1,41 @@
-# Вспомогательные функции, для работы функции страницы «Главная»,
-import os
 import datetime
-from typing import Any
-
+import logging
+import os
 import pandas as pd
+import requests
+from dotenv import load_dotenv
+import json
+import urllib.request
 
-from utils import setup_logger
+load_dotenv()
+API_KEY_CUR = os.getenv("API_KEY_CUR")
+
+SP_500_API_KEY = os.getenv("SP_500_API_KEY")
+
+logger = logging.getLogger("utils.log")
+file_handler = logging.FileHandler("utils.log", "w")
+file_formatter = logging.Formatter("%(asctime)s %(levelname)s: %(message)s")
+file_handler.setFormatter(file_formatter)
+logger.addHandler(file_handler)
+logger.setLevel(logging.INFO)
 
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-file_path_1 = os.path.join(current_dir, "../logs", "logs.log")
-logger = setup_logger("utils", file_path_1)
-
+def read_excel(path_file: str) -> list[dict]:
+    """Функция читает .xlsx файл и возвращает список словарей"""
+    df = pd.read_excel(path_file)
+    result = df.apply(
+        lambda row: {
+            "Дата платежа": row["Дата платежа"],
+            "Статус": row["Статус"],
+            "Сумма платежа": row["Сумма платежа"],
+            "Валюта платежа": row["Валюта платежа"],
+            "Категория": row["Категория"],
+            "Описание": row["Описание"],
+            "Номер карты": row["Номер карты"],
+        },
+        axis=1,
+    ).tolist()
+    return result
 
 def checking_current_date():
     """ Функция вормирует время формата:
@@ -22,12 +46,11 @@ def checking_current_date():
 
     return today_time
 
-
-def date(time: str):  # json
+def greetings(time_str: str):  # json
     """Функция для страницы «Главная»
     принимает на вход строку с датой и временем в формате
     YYYY-MM-DD HH:MM:SS"""
-    time_received = datetime.datetime.strptime(time[-8:], "%H:%M:%S")
+    time_received = datetime.datetime.strptime(time_str[-8:], "%H:%M:%S")
 
     dictionary_time_limit = {"00:00:00": "05:59:59", "06:00:00": "11:59:59", "12:00:00": "17:59:59",
                              "18:00:00": "23:59:59"}
@@ -46,127 +69,103 @@ def date(time: str):  # json
             return "Добрый вечер"
 
 
-def reading_tables_xlsx(file_xlsx: str) -> list:
-    """Чтение Excel файла и вывод как список словарей"""
-    try:
-        df = pd.read_excel(file_xlsx)
-
-        # logger_excel.info(f"Открыли файл{file_path_xlsx}")
-
-        transaction_excel = df.to_dict(orient="records")
-
-        # logger_excel.debug("Преобразовали данные из Exsel в список словарей")
-
-        return transaction_excel
-
-    except TypeError as t:
-        print(f"Ошибка: {t}")
-    #     logger_excel.error(f"Ошибка: {t}")
-    except FileNotFoundError as t:
-        print(f"Ошибка: {t}")
-    #     logger_excel.error(f"Ошибка: {t}")
-    except Exception as t:
-        print(f"Ошибка: {t}")
-    #     logger_excel.error(f"Ошибка: {t}")
-
-
-def card_information(list_map_data: list) -> list[dict]:
-    """Собираю этот страшный словарь,
-    хотя бы кусочек, а там посмотрим"""
-    cards = []
-
-    for transaction in list_map_data:
-        card_number = transaction.get("Номер карты")
-
-        if not card_number or str(card_number).strip().lower() == "nan":
+def for_each_card(my_list: list) -> list:
+    """Функция создания информации по каждой карте"""
+    logger.info("Начало работы функции (for_each_card)")
+    cards = {}
+    result = []
+    logger.info("Перебор транзакций")
+    for i in my_list:
+        if i["Номер карты"] == "nan" or type(i["Номер карты"]) is float:
+            continue
+        elif i["Сумма платежа"] == "nan":
             continue
         else:
-            #
-            cards.append(
-                {
-                    "last_digits": transaction.get('Номер карты'),
-                    "total_spent": transaction.get('Сумма платежа'),
-                    "cashback": transaction.get('Бонусы (включая кэшбэк)')
-                }
-            )
-    return cards
-
-
-def top_transactions_information(list_map_data: list) -> list[dict]:
-    top_transactions = []
-    sort_list_transaction = sorted(list_map_data, key=lambda d: d['Сумма платежа'])  #
-
-    counter = 0
-    for dikt_sort in sort_list_transaction:
-        counter += 1
-        if counter <= 5:
-            amount = str(dikt_sort.get('Сумма платежа'))
-            #
-            top_transactions.append(
-                {
-                    "date": dikt_sort.get('Дата платежа'),
-                    "amount": amount[1:],
-                    "category": dikt_sort.get('Категория'),
-                    "description": dikt_sort.get('Описание')
-                }
-            )
-
-    return top_transactions
-
-
-# не забыть что функция принимает список ["USD", "EUR"]
-def get_exchange_rates(currencies: list[str], api_key_currency: Any, requests=None) -> list[dict]:
-    """Функция принимает список кодов валют и возвращает список словарей с валютами и их курсами"""
-    exchange_rates = []
-    for currency in currencies:
-
-        url = f"https://v6.exchangerate-api.com/v6/{api_key_currency}/latest/{currency}"
-        response = requests.get(url)
-
-        logger.info("Выполнен запрос на курс валют")
-
-        if response.status_code == 200:
-            data = response.json()
-
-            logger.info(f"Получен ответ от api курса валют: {data}")
-
-            ruble_cost = data["conversion_rates"]["RUB"]
-            exchange_rates.append({"currency": currency, "rate": ruble_cost})
-        else:
-            print(f"Ошибка: {response.status_code}, {response.text}")
-            logger.error(f"Ошибка api запроса {response.status_code}, {response.text}")
-            exchange_rates.append({"currency": currency, "rate": None})
-    logger.info("Курсы валют созданы")
-    return exchange_rates
-
-
-# не забыть что функция принимает список ["AAPL", "AMZN", "GOOGL"]
-def get_stocks_cost(companies: list[str], api_key_stocks: Any, requests=None) -> list[dict]:
-    """Функция принимает список кодов компаний и возвращает словарь со стоимостью акций каждой переданной компании"""
-
-    stocks_cost = []
-    for company in companies:
-        url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={company}&apikey={api_key_stocks}"
-        response = requests.get(url)
-        logger.info("Выполнен запрос на курс акций")
-
-        if response.status_code == 200:
-            data = response.json()
-            logger.info(f"Получен ответ от api курса акций: {data}")
-            time_series = data.get("Time Series (Daily)")
-
-            if time_series:
-                latest_date = max(time_series.keys())
-                latest_data = time_series[latest_date]
-                stock_cost = latest_data["4. close"]
-                stocks_cost.append({"stock": company, "price": float(stock_cost)})
+            if i["Номер карты"][1:] in cards:
+                cards[i["Номер карты"][1:]] += float(str(i["Сумма платежа"])[1:])
             else:
-                print(f"Ошибка: данные для компании {company} недоступны. API ответ {data}")
-                logger.error(f"Ошибка ответа: {data}")
-                stocks_cost.append({"stock": company, "price": None})
-        else:
-            print(f"Ошибка: {response.status_code}, {response.text}")
-            logger.error(f"Ошибка api запроса {response.status_code}, {response.text}")
-            stocks_cost.append({"stock": company, "price": None})
-    logger.info("Стоимость акций создана")
-    return stocks_cost
+                cards[i["Номер карты"][1:]] = float(str(i["Сумма платежа"])[1:])
+    for k, v in cards.items():
+        result.append({"last_digits": k, "total_spent": round(v, 2), "cashback": round(v / 100, 2)})
+    logger.info("Завершение работы функции (for_each_card)")
+    return result
+
+
+def currency_rates(currency: list) -> list[dict]:
+    """Функция запроса курса валют"""
+    logger.info("Начало работы функции (currency_rates)")
+    api_key = API_KEY_CUR
+    result = []
+    for i in currency:
+        url = f"https://v6.exchangerate-api.com/v6/{api_key}/latest/{i}"
+        with urllib.request.urlopen(url) as response:
+            body_json = response.read()
+        body_dict = json.loads(body_json)
+        result.append({"currency": i, "rate": round(body_dict["conversion_rates"]["RUB"], 2)})
+
+    logger.info("Создание списка словарей для функции - currency_rates")
+
+    logger.info("Окончание работы функции - currency_rates")
+    return result
+
+
+def top_five_transaction(my_list: list) -> list:
+    """Функция для получения топ-5 транзакций по сумме платежа"""
+    logger.info("Начало работы функции (top_five_transaction)")
+    all_transactions = {}
+    result = []
+    logger.info("Перебор транзакций в функции (top_five_transaction)")
+    for i in my_list:
+        if i["Категория"] not in all_transactions and str(i["Сумма платежа"])[0:1] != "-":
+            if i["Категория"] != "Пополнения":
+                all_transactions[i["Категория"]] = float(str(i["Сумма платежа"])[1:])
+        elif (
+                i["Категория"] in all_transactions
+                and float(str(i["Сумма платежа"])[1:]) > all_transactions[i["Категория"]]
+        ):
+            all_transactions[i["Категория"]] = float(str(i["Сумма платежа"])[1:])
+    for i in my_list:
+        for k, v in all_transactions.items():
+            if k == i["Категория"] and v == float(str(i["Сумма платежа"])[1:]):
+                result.append({"date": i["Дата платежа"], "amount": v, "category": k, "description": i["Описание"]})
+    logger.info("Окончание работы функции (top_five_transaction)")
+
+    return result
+
+
+def get_price_stock(stocks: list) -> list:
+    """Функция для получения данных об акциях из списка S&P500"""
+    logger.info("Начало работы функции (get_price_stock)")
+    api_key = SP_500_API_KEY
+    stock_prices = []
+    logger.info("Функция обрабатывает данные транзакций.")
+    for stock in stocks:
+        logger.info("Перебор акций в списке 'stocks' в функции (get_price_stock)")
+        url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={stock}&apikey={api_key}"
+        response = requests.get(url, timeout=5, allow_redirects=False)
+        result = response.json()
+
+        stock_prices.append({"stock": stock, "price": round(float(result["Global Quote"]["05. price"]), 2)})
+    logger.info("Функция get_price_stock успешно завершила свою работу")
+    return stock_prices
+
+def filter_by_date(date: str, my_list: list) -> list:
+    """Функция фильтрующая данные по заданной дате"""
+    list_by_date = []
+    logger.info("Начало работы функции (filter_by_date)")
+    if date == "":
+        return list_by_date
+    year, month, day = int(date[0:4]), int(date[5:7]), int(date[8:10])
+    date_obj = datetime.datetime(year, month, day)
+    for i in my_list:
+        if i["Дата платежа"] == "nan" or type(i["Дата платежа"]) is float: ######
+            continue
+        elif (
+                date_obj
+                >= datetime.datetime.strptime(str(i["Дата платежа"]), "%d.%m.%Y")
+                >= date_obj - datetime.timedelta(days=day - 1)
+        ):
+            list_by_date.append(i)
+    logger.info("Конец работы функции (filter_by_date)")
+    return list_by_date
+
