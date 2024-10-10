@@ -75,4 +75,3 @@ def spending_by_category(transactions: pd.DataFrame, category: str, date: Option
         data_json = json.dumps(final_list, indent=4, ensure_ascii=False, )
 
         return data_json
-

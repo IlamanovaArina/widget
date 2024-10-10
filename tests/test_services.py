@@ -1,8 +1,7 @@
 import json
-import os
 
-from src.utils import read_excel
 from src.services import simple_search
+from src.utils import read_excel
 
 way = r"C:\Users\minac.DESKTOP-L51PJSH\PycharmProjects\widget\data\operations.xlsx"
 my_list = read_excel(way)

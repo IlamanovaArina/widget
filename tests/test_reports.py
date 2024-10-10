@@ -1,9 +1,7 @@
-import os
-
 import pytest
 
-from src.utils import read_excel
 from src.reports import spending_by_category
+from src.utils import read_excel
 
 way = r"C:\Users\minac.DESKTOP-L51PJSH\PycharmProjects\widget\data\operations.xlsx"
 result_read = read_excel(way)

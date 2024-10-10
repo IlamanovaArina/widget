@@ -1,10 +1,9 @@
 import json
 import logging
-import os
 
-from src.utils import (currency_rates, for_each_card, get_price_stock,
-                       greetings, top_five_transaction, read_excel, checking_current_date)
-from src.utils import filter_by_date
+from src.utils import (checking_current_date, currency_rates, filter_by_date,
+                       for_each_card, get_price_stock, greetings, read_excel,
+                       top_five_transaction)
 
 logger = logging.getLogger("utils.log")
 file_handler = logging.FileHandler("main.log", "w")
@@ -21,7 +20,7 @@ data_frame = read_excel(way)
 def main(date: str, df_transactions, stocks: list, currency: list):
     """Функция создающая JSON ответ для страницы главная"""
     logger.info("Начало работы главной функции (main)")
-    final_list = filter_by_date(date, df_transactions)  #####
+    final_list = filter_by_date(date, df_transactions)
     time = checking_current_date()
     greeting = greetings(time)
     cards = for_each_card(final_list)

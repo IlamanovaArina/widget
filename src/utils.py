@@ -1,11 +1,12 @@
 import datetime
+import json
 import logging
 import os
+import urllib.request
+
 import pandas as pd
 import requests
 from dotenv import load_dotenv
-import json
-import urllib.request
 
 load_dotenv()
 API_KEY_CUR = os.getenv("API_KEY_CUR")
@@ -37,6 +38,7 @@ def read_excel(path_file: str) -> list[dict]:
     ).tolist()
     return result
 
+
 def checking_current_date():
     """ Функция вормирует время формата:
     YYYY-MM-DD HH:MM:SS"""
@@ -45,6 +47,7 @@ def checking_current_date():
     today_time = today_date.strftime("%Y-%m-%d %H:%M:%S")
 
     return today_time
+
 
 def greetings(time_str: str):  # json
     """Функция для страницы «Главная»
@@ -149,6 +152,7 @@ def get_price_stock(stocks: list) -> list:
     logger.info("Функция get_price_stock успешно завершила свою работу")
     return stock_prices
 
+
 def filter_by_date(date: str, my_list: list) -> list:
     """Функция фильтрующая данные по заданной дате"""
     list_by_date = []
@@ -158,7 +162,7 @@ def filter_by_date(date: str, my_list: list) -> list:
     year, month, day = int(date[0:4]), int(date[5:7]), int(date[8:10])
     date_obj = datetime.datetime(year, month, day)
     for i in my_list:
-        if i["Дата платежа"] == "nan" or type(i["Дата платежа"]) is float: ######
+        if i["Дата платежа"] == "nan" or type(i["Дата платежа"]) is float:
             continue
         elif (
                 date_obj
@@ -168,4 +172,3 @@ def filter_by_date(date: str, my_list: list) -> list:
             list_by_date.append(i)
     logger.info("Конец работы функции (filter_by_date)")
     return list_by_date
-

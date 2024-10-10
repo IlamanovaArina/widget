@@ -1,14 +1,11 @@
-import pandas as pd
+from unittest.mock import patch
 
-from src.main import main
-from unittest.mock import Mock, patch
+from src.views import main
 
 
 @patch('requests.get')
 def test_main(mock_get):
     way = r"C:\Users\minac.DESKTOP-L51PJSH\PycharmProjects\widget\data\operations.xlsx"
-    df = pd.read_excel(way)
-   
     mock_get.return_value.json.return_value = {
         "greeting": "Добрый день",
         "cards": [
@@ -64,7 +61,7 @@ def test_main(mock_get):
                 "price": 228.03
             }]}
     res = main("2021.11.30", way, ["AAPL"],
-               ["USD", "EUR"])  ######
+               ["USD", "EUR"])
     ext = {
         "greeting": "Добрый день",
         "cards": [
@@ -121,4 +118,3 @@ def test_main(mock_get):
             }]}
 
     assert res == ext
-

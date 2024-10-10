@@ -1,8 +1,10 @@
-from dotenv import load_dotenv
-from unittest.mock import Mock, patch
 import os
-from src.utils import currency_rates, for_each_card, get_price_stock, greetings, top_five_transaction, read_excel, \
-    checking_current_date
+from unittest.mock import Mock, patch
+
+from dotenv import load_dotenv
+
+from src.utils import (currency_rates, for_each_card, get_price_stock,
+                       greetings, read_excel, top_five_transaction)
 
 load_dotenv()
 API_KEY_CUR = os.getenv("API_KEY_CUR")
@@ -69,7 +71,7 @@ def test_currency_rates(mock_get):
 
     result = currency_rates(['USD', 'EUR'])
     expected = [{"currency": "USD", "rate": 88.34}, {"currency": "EUR", "rate": 97.8}]
-    assert result == expected  #######
+    assert result == expected
 
 
 @patch("requests.get")
