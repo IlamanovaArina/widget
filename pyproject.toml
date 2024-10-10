@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "widget"
+version = "0.1.0"
+description = ""
+authors = ["Arina <ilamanova.arina@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[black]
+line-length = 119
+exclude = ".git"
+
+[isort]
+line-length = 119
+
+[mypy]
+disallow_untyped_defs = true
+warn_return_any = true
+exclude = venv
+
